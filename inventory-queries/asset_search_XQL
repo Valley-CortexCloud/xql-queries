@@ -1,0 +1,18 @@
+// Cortex XQL Query for Asset Inventory Dashboard Widget
+// Purpose: Searches the 'asset_inventory' dataset for a user-provided keyword.
+// Displays: A table of matching assets with key details, including AWS account ID.
+// Usage: Intended for a dashboard widget where '$Type' & '$AccountID' are dynamic inputs.
+//        The widget will display the count of results and a scrollable table.
+
+// --- Main Query ---
+
+dataset = asset_inventory
+// Filter stage: filter to AWS Resources
+// The Asset Type + Account ID placeholder will be replaced by the user's input in the dashboard widget.
+// The search for account ID is string formatted 
+| filter xdm.asset.provider contains "AWS"
+| alter blank_Fields = if(xdm.asset.name  = null)
+| alter normal_Fields = xdm.asset.name
+| sort  asc blank_Fields, asc normal_Fields 
+| fields xdm.asset.name as Name, xdm.asset.realm as Account_ID, xdm.asset.type.id as Type, xdm.asset.raw_fields as Full_JSON, xdm.asset.id as AssetID
+| filter Type in ($Type) and Account_ID in ($AWSID) 
