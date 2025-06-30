@@ -1,0 +1,93 @@
+dataset = asset_inventory
+| filter xdm.asset.provider contains "AWS"
+| filter xdm.asset.type.id contains "Guardduty"
+| filter xdm.asset.realm in ($AWSID)
+| alter DataFiled = "Enabled"
+| fields xdm.asset.realm as Account_ID, DataFiled as Enabled, xdm.asset.raw_fields as Full_JSON
+
+
+Better GuardDuty
+
+// GuardDuty Service Part (from Step 1, assuming it worked, remove its | view table)
+dataset = asset_inventory
+| filter xdm.asset.provider contains "AWS"
+| filter xdm.asset.type.id contains "Guardduty"
+| filter xdm.asset.realm in ($AWSID)
+| comp COUNT() by xdm.asset.realm
+| alter Account_ID = xdm.asset.realm,
+        DataSourceName = "GuardDuty_Service",
+        Status = "ENABLED"
+| fields Account_ID, DataSourceName, Status
+| union
+
+// CloudTrail Part (from Step 2, assuming it worked, remove its | view table)
+(dataset = asset_inventory
+| filter xdm.asset.provider contains "AWS"
+| filter xdm.asset.type.id contains "Guardduty"
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "CloudTrail",
+        CloudTrailStatus = JSON_EXTRACT_SCALAR(config_details, "$.Platform Discovery.dataSources.cloudTrail.status")
+| fields Account_ID, DataSourceName, CloudTrailStatus )
+| union 
+// Part 2: RDS Database Events status from JSON
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        RDS_Status = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.database.rds.databaseEvents.status")
+| fields Account_ID, DataSourceName, RDS_Status )
+
+| union 
+// PPart 3: DNS Logs status from JSON
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        DNSLogsStatus = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.dnsLogs.status")
+| fields Account_ID, DataSourceName, DNSLogsStatus  )
+
+| union 
+// Part 4:  Flow Logs status from JSON
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        FlowLogStatus = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.flowLogs.status")
+| fields Account_ID, DataSourceName, FlowLogStatus   )
+
+| union 
+// Part 5:  Kubernetes status from JSON
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        KubernetesStatus = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.kubernetes.auditLogs.status")
+| fields Account_ID, DataSourceName, KubernetesStatus    )
+
+| union 
+// Part 6:  GuardDuty Malware Scan
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        MalwareEBSStatus = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.malwareProtection.scanEc2InstanceWithFindings.ebsVolumes.status")
+| fields Account_ID, DataSourceName, MalwareEBSStatus    )
+
+| union 
+// Part 7:  S3 Logs Status from JSON
+(dataset = asset_inventory
+| filter xdm.asset.realm in ($AWSID)
+| fields xdm.asset.raw_fields as config_details, xdm.asset.realm as Account_ID
+| alter DataSourceName = "RDS_Database_Events", // Using underscore
+        S3Status = json_extract_scalar(config_details, "$.Platform Discovery.dataSources.s3Logs.status")
+| fields Account_ID, DataSourceName, S3Status     )
+
+| comp first(CloudTrailStatus) as CloudTrail_Status, 
+       first(RDS_Status ) as RDS_Events,
+       first(DNSLogsStatus ) as DNSLogs_Status,
+       first(FlowLogStatus ) as FlowLogs_Status,
+       first(KubernetesStatus  ) as KubernetesLogs_Status,
+       first(MalwareEBSStatus  ) as MalwareScan_Status,
+       first(S3Status  ) as S3Logs_Status
+       by Account_ID 
