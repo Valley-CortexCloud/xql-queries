@@ -1,0 +1,13 @@
+dataset=findings  
+| filter (xdm.finding.name contains "AWS VPC Flow Logs not enabled") or 
+          xdm.finding.name contains "AWS Access logging not enabled on S3 buckets" or 
+          xdm.finding.name contains "AWS S3 CloudTrail bucket for which access logging is disabled" or 
+          xdm.finding.name contains "AWS Opensearch domain audit logging disabled" or 
+          xdm.finding.name contains "AWS RDS Postgres Cluster does not have query logging enabled" or 
+          xdm.finding.name contains "AWS EKS control plane logging disabled" or 
+          xdm.finding.name contains "AWS Elastic Load Balancer v2 (ELBv2) with access log disabled"
+
+| fields xdm.finding.id as issue_id, xdm.finding.name as category
+| comp count(issue_id ) as issues by category
+| sort desc issues 
+| view graph type = pie xaxis = category yaxis = issues valuecolor("AWS Access logging not enabled on S3 buckets","#ec0166") 
