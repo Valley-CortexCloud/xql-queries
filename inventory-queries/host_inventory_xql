@@ -1,0 +1,8 @@
+dataset = asset_inventory
+| filter xdm.asset.provider contains "AWS"
+| filter xdm.host.os_distribution != null and xdm.host.os_distribution != ""
+| filter xdm.asset.realm in ($AWSID)
+| comp count(xdm.asset.id) as Total by xdm.host.os_distribution
+| sort desc Total
+
+| view graph type = pie xaxis = xdm.host.os_distribution yaxis = Total 
