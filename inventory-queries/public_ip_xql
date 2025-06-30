@@ -1,0 +1,6 @@
+dataset = asset_inventory 
+| filter xdm.asset.type.id = "EC2_NETWORK_INTERFACE"
+| alter ip_address = json_extract_scalar(xdm.asset.raw_fields, "$.Platform Discovery.association.publicIp") 
+| alter owner_ip = json_extract_scalar(xdm.asset.raw_fields, "$.Platform Discovery.association.ipOwnerId") 
+| filter ip_address != null
+| fields owner_ip as Public_Owner_Name, ip_address as Public_IP_Address, xdm.asset.name as Name, xdm.asset.raw_fields as FULL_JSON
